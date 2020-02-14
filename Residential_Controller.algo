@@ -1,0 +1,306 @@
+
+SET nbfloors TO 10
+SET nbcolumn TO 1
+SET nbelev TO 2
+SET nbbattery TO 1
+
+SET delaydooropening TO 2 sec
+SET timeoutdooropen TO 10 sec
+
+SET elevworkloadlimit TO 1800 lb
+SET elevmaxloadlimit TO 2200 lb
+
+'*** door open ***' 
+    SEQUENCE opendoor (elevator)
+        wait until elevator status is stopped or idle 
+        open door
+        INIT timer TO 5 sec 
+        WHILE timer > 0 second or door is obstructed or loaderror is 2
+            keep door opened
+        END WHILE 
+        call closedoor (elevator)
+    END SEQUENCE
+
+'*** door close ***'
+    SEQUENCE closedoor (elevator)
+        close door
+        WHILE door is closing 
+            If obstructed THEN
+                Call opendoor (elevator)
+        END WHILE
+        IF door id closed THEN
+            SET elevator status TO idle 
+            INIT idletimer TO 10 sec
+        END IF 
+    END SEQUENCE
+
+'***elevator location ***'
+    SEQUENCE findfloorbutton (currentfloor) 
+        FOR EACH button infloorbuttons 
+            IF currentfloor = floorbutton THEN
+                RETURN button 
+        END FOR 
+    END SEQUENCE
+
+'***elevator statue***'
+    SEQUENCE checkelevatorstatus 
+        FOR EACH elevator in column
+            IF dooropentimer = 0 sec THEN 
+                CALL closedoor (elevator)
+            END IF 
+            IF idletimer = 0 sec THEN
+                CALL adddestination (defaultfFloor, elevator, usermove)
+            END IF
+        END FOR
+    END SEQUENCE
+
+'***elevator starmoving***'
+    SEQUENCE startmove (elevator)
+        IF currentfloor < first destination inelevator destinationlist THEN 
+            SET direction TO up
+        ELSE 
+            SET direction TO down
+        END IF
+        SET status TO moving
+        start move TO first destination inelevator destinationlist 	
+    END SEQUENCE
+
+'***elevator stop***'
+    SEQUENCE stopelevator (elevator)
+        stop elevator
+        INIT timer TO 2 sec
+        INIT dooropentimer TO 10 sec
+        SET status TO stopped
+    END SEQUENCE
+
+'***elevator direction***'
+    SEQUENCE finddirectionbutton (direction, requestedfloor) 
+        FOR EACH button indirectionbuttons 
+            IF requestedfloor = floorbutton and direction = directionbutton THEN
+                RETURN button 
+        END FOR 
+    END SEQUENCE 
+
+'***call elevator***'
+    SEQUENCE callelevator (direction, requestedfloor, usermove) 
+        CALL findelevator (direction, requestedfloor, -1) RETURNING elevator 
+        IF CALL checkifdestinexist (requestedFloor, elevator) RETURNING FALSE THEN 
+            CALL adddestination (elevator, requestedfloor, usermove) 
+    END SEQUENCE
+
+'***moving elevator***'
+    SEQUENCE checkmovingelevator 
+        FOR EACH elevator in column
+            IF elevator status is moving THEN
+                READ floor level
+                IF elevator currentfloor <> floor level THEN
+                    SET currentfloor TO floor level
+                END IF
+                IF elevator currentfloor = first destination in elevator destinationlist THEN
+                    CALL stopelevator (elevator)
+                    CALL clearbuttons (elevator)
+                END IF
+            END IF
+            IF status is stopped THEN 
+                CALL opendoor (elevator)
+            END IF
+        END FOR
+    END SEQUENCE 
+
+'***reset button***'
+    SEQUENCE clearbuttons (elevator)
+        CALL finddirectionbutton (elevator direction, elevator currentfloor) RETURNING button
+        SET button inactive
+        CALL findfloorbutton (elevator currentfloor) RETURNING button
+        SET button inactive	
+    END SEQUENCE
+
+'***check floor***'
+    SEQUENCE checkifdestinexist (floor, elevator)
+        FOR EACH destination in elevator destinationlist 
+            IF destination = floor THEN 
+                RETURN TRUE
+            ELSE
+                RETURN FALSE
+        END FOR
+    END SEQUENCE
+
+'***sort list***'
+    SEQUENCE ShortestFloorList 
+        SET length TO x
+        FOR EACH elevator in column
+            IF length > COMPUTE length Of destinationlist THEN 
+                SET length TO COMPUTE length Of destinationlist
+                SET elevwithshortestlist TO elevator
+            END IF			
+        END FOR 
+        RETURN elevwithshortestlist
+    END SEQUENCE
+
+'***nearest elevator***'
+    SEQUENCE nearestelevator (requestedfloor, requesteddirection)
+        SET gap TO x
+        FOR EACH elevator in elevators
+            IF gap > COMPUTE currentfloor and requestedfloor THEN 
+                IF (requestedfloor > currentFloor and direction is up and requesteddirection is up)
+                or (requestedfloor < currentfloor and direction is down and requesteddirection is down) THEN
+                    SET gap TO COMPUTE currentfloor and requestedfloor
+                    SET elevwithshortestgap TO elevator 
+                END IF
+            END IF
+        END FOR 
+        RETURN elevwithshortestgap
+    END SEQUENCE
+
+'***find elevator***'
+    SEQUENCE findelevator (requesteddirection, requestedfloor, usermove)
+        FOR EACH elevator in column
+            IF elevator number <> usermove THEN
+                COMPUTE currentgap and currentfloor and requestedfloor
+                COMPUTE listlength as length of destinationlist			
+                IF requestedfloor = currentfloor THEN
+                    IF (status is stopped and direction = requesteddirection) or (status is idle and destinationlist is EMPTY) THEN
+                        RETURN elevator			
+                ELSE IF (requestedfloor > currentfloor and direction is up and requesteddirection is up) or (requestedfloor < currentfloor and direction is down and requesteddirection is down) THEN
+                    IF status is moving or stopped THEN
+                        Return elevator 			
+                ELSE IF status is idle and destinationlist is EMPTY THEN
+                    Return elevator
+                END IF
+            END IF
+        END FOR	
+        CALL nearestelevator (requestedfloor, requesteddirection) RETURNING elevwithshortestgap 
+        IF elevwithshortestgap not EMPTY and usermove is -1 THEN 
+            RETURN elevwithshortestgap
+        ELSE 
+            CALL shortestfloorlist RETURNING elevwithshortestlist
+            RETURN elevwithshortestlist
+        END IF
+    END SEQUENCE
+
+'***call button***'
+    SEQUENCE buttonpressed (button)
+        SET button active
+        IF button action is callelevator THEN 
+            CALL callelevator (button direction, button floor, usermove)	
+        ELSE IF button action is adddestinatione THEN
+            IF CALL checkifdestinexist (button floor, button elevator) RETURNING FALSE THEN 
+                CALL adddestination (button floor, button elevator, usermove)	
+        ELSE IF button action is opendoor THEN
+            IF button elevator status is stopped or idle THEN
+                CALL opendoor (button elevator)
+        ELSE IF button action is closeDoor THEN 
+            CALL closedoor (button elevator) 
+        END IF
+    END SEQUENCE
+
+'***check destination***'
+    SEQUENCE verifydestinationlist 
+        FOR EACH elevator in column
+            IF first destination in elevator destinationList not EMPTY THEN
+                IF LoadError <> 2 THEN
+                    IF LoadError = 1 THEN 
+                        IF destinationlist usermove '***try to remove people***'
+                        THEN
+                            CALL startmove (elevator)
+                        ELSE
+                            SET destinationtempor TO first destination FROM destinationlist
+                            CALL findelevator (elevator direction, destinationtempor) RETURNING 
+                            CALL adddestination (destinationtempor)
+                        END IF
+                    ELSE 
+                        IF elevator currentfloor = destination THEN 
+                            CALL opendoor (elevator)
+                        ELSE 
+                            CALL startmove (elevator)
+                        END IF
+                    END IF
+                ELSE 
+                    CALL opendoor (elevator)
+                END IF
+            END IF 
+        END FOR 
+    END SEQUENCE
+
+'***add destination***'
+    SEQUENCE adddestination (floor, elevator, usermove)
+        IF elevator status is idle THEN
+            ADD floor in elevator destinationlist
+            ADD usermove at position in destinationlist 
+        ELSE
+            FOR EACH destination in elevator destinationlist
+                IF destination not EMPTY THEN
+                    If elevator direction id up THEN
+                        IF floor < destination and floor > currentfloor THEN
+                            COMPUTE position in destinationlist
+                            ADD floor at position in destinationlist
+                            RETURN
+                        ELSE
+                            IF floor > destination and destination < currentfloor THEN
+                                COMPUTE position in destinationlist
+                                ADD floor at position in destinationlist
+                                RETURN
+                            END IF
+                        END IF
+                    ELSE IF elevator direction is down
+                        IF floor > destination and floor < currentfloor THEN
+                            COMPUTE position in destinationlist
+                            ADD floor at position in destinationlist
+                            RETURN
+                        ELSE
+                            IF floor < destination and destination > currentfloor THEN
+                                COMPUTE position in destinationlist
+                                ADD floor at position in destinationlist
+                                RETURN
+                            END IF               
+                        END IF
+                    END IF
+                ELSE
+                    ADD floor TO destinationlist
+                    RETURN 
+                END IF         
+            END FOR
+        END IF
+    END SEQUENCE 
+
+'***check weight***'
+    SEQUENCE checkload
+        FOR EACH elevator in elevators
+            READ load 
+            If currentload > eLevworkloadlimit THEN
+                SET loaderror TO 1   '//Continue to move without taking new people
+                SET alarm TO inactive
+            ELSE IF currentload > elevmaxloadlimit THEN
+                SET loaderror TO 2   '//Halted until load is removed
+                SET alarm TO active
+            ELSE 
+                SET loaderror TO 0   '//Move Normally
+                SET alarm TO inactive
+            END IF
+        END FOR
+    END SEQUENCE
+
+'***emergency***'
+    SEQUENCE forceclosedoor 
+	SET alarm TO active 
+	close slowly
+	IF door is closed THEN
+        SET elevator status TO idle
+		Init idletimer TO 30 Seconds
+		SET alarm TO inactive
+	END IF
+    END SEQUENCE
+
+'***elevator job***'
+    WHILE battery is on
+        READ Each button in buttons 
+        IF button is pressed THEN
+            CALL buttonpressed (button) '***call button***'
+            Call findelevator           '***find elevator***'
+            CALL checkload                  '***check weight***'
+            READ buttonpressed              '***call button***'
+            CALL checkelevstatus            '***elevator statue***'
+            CALL verifydestinationlist      '***check destination***'
+            CALL checkmovingelevator        '***moving elevator***'
+        END IF 
+    END WHILE   
