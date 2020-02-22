@@ -55,7 +55,7 @@ delayforceclosedoor = 10000
 timeoutdooropen = 7500
 delaymaxidletime = 7500   
 currentfloor = 0
-apptimeout = 40000
+apptimeout = 60000
 
 timeinmilli = lambda: int(round(time.time() * 1000))
 
@@ -99,9 +99,9 @@ class elevatorcontroller:
                 if requestedfloor is elevator.currentfloor:
                     if (elevator.status is stopped and elevator.direction is requesteddirection) or (elevator.status is idle and not elevator.destinationlist):
                         return elevator
-                elif ((requestedfloor > elevator.currentfloor) and ((elevator.direction is up) or (elevator.direction is usermove)) and (requesteddirection is up) and ((elevator.status is moving) or (elevator.status is stopped))):
+                elif ((requestedfloor >= elevator.currentfloor) and ((elevator.direction is up) or (elevator.direction is usermove)) and (requesteddirection is up) and ((elevator.status is moving) or (elevator.status is stopped))):
                     return elevator
-                elif ((requestedfloor > elevator.currentfloor) and ((elevator.direction is down) or (elevator.direction is usermove)) and (requesteddirection is down) and ((elevator.status is moving) or (elevator.status is stopped))):
+                elif ((requestedfloor <= elevator.currentfloor) and ((elevator.direction is down) or (elevator.direction is usermove)) and (requesteddirection is down) and ((elevator.status is moving) or (elevator.status is stopped))):
                     return elevator
                 elif elevator.status is idle and not elevator.destinationlist:
                     idleelevatorlist.append(elevator)
@@ -124,13 +124,12 @@ class elevatorcontroller:
 
     def shortestdestinationlist(self):
         length = 999
-        #elevWithShortestList = None
         for elevator in self.columns.elevators:
             if length > len(elevator.destinationlist):
                 length = len(elevator.destinationlist)
                 elevwithshortestlist = elevator
         return elevwithshortestlist
-
+    
     def nearestelevator(self, requestedfloor, requesteddirection):
         gap = 999
         elevwithshortestgap = None
@@ -147,31 +146,18 @@ class elevatorcontroller:
                 if elevator.direction:
                     if elevator.direction is up:
                         if (floor < destination) and (floor > elevator.currentfloor):
-                            insertposition = elevator.destinationlist.index(destination)
-                            elevator.destinationlist.insert(insertposition, floor)
-                            elevator.userlist.insert(insertposition, usermove)
-                            elevator.directionlist.insert(insertposition, requesteddirection)
+                            elevator.destinationlist.sort()
                             return
                         elif (floor > destination) and (floor < elevator.currentfloor):
-                            insertposition = elevator.destinationlist.index(destination)
-                            elevator.destinationlist.insert(insertposition, floor)
-                            elevator.userlist.insert(insertposition, usermove)
-                            elevator.directionlist.insert(insertposition, requesteddirection)
+                            elevator.destinationlist.sort()
                             return
                     elif elevator.direction is down:
                         if (floor > destination) and (floor < elevator.currentfloor):
-                            insertposition = elevator.destinationlist.index(destination)
-                            elevator.destinationlist.insert(insertposition, floor)
-                            elevator.userlist.insert(insertposition, usermove)
-                            elevator.directionlist.insert(insertposition, requesteddirection)
+                            elevator.destinationlist.sort(reversed)
                             return
                         elif (floor < destination) and (floor > elevator.currentfloor):
-                            insertposition = elevator.destinationlist.index(destination)
-                            elevator.destinationlist.insert(insertposition, floor)
-                            elevator.userlist.insert(insertposition, usermove)
-                            elevator.directionlist.insert(insertposition, requesteddirection)
+                            elevator.destinationlist.sort(reversed)
                             return
-
                 else:
                     elevator.destinationlist.append(floor)
                     elevator.userlist.append(usermove)
@@ -190,7 +176,6 @@ class elevatorcontroller:
                 elevator.forceclosedoor()
             if (timeinmilli() > elevator.idletime + delaymaxidletime) and (not elevator.destinationlist):
                 pass
-                #self.adddestination(self.Columns.defaultfloor,elevator,moveout,"")
 
             if (timeinmilli() > (elevator.opendoortime + delaydooropening)) and (elevator.door.status is opening):
                 elevator.door.status = opened
@@ -228,7 +213,7 @@ class elevatorcontroller:
             if elevator.destinationlist:
                 if elevator.userlist:
                     if (elevator.destinationlist[0]) and (elevator.status is idle):
-                        if (elevator.currentfloor is not elevator.destinationlist[0]) and elevator.door.status is closed:
+                        if (elevator.currentfloor != elevator.destinationlist[0]) and elevator.door.status is closed:
                             elevator.startmove()
                         elif (elevator.userlist[0] is movein) and (elevator.currentfloor is elevator.destinationlist[0]) and elevator.door.status is closed:
                             #print("open door 1")
@@ -258,7 +243,6 @@ class elevatorcontroller:
                         print(elevator.destinationlist)
 
             if elevator.status is stopped and elevator.door.status is closed:
-                #print("opendoor 2")
                 elevator.opendoor()
 
     def clearbuttons(self, elevator):
@@ -276,7 +260,7 @@ class floor:
     def __init__(self, id, name, buttons):
         self.id = id
         self.name = name
-        #self.directionbuttons = buttons
+
 
 
 class column:
@@ -287,9 +271,6 @@ class column:
         self.elevators = []
         for index in range(self.nbelev):
             self.elevators.append(elevator(index+1))
-        #for elevator in range(self.elevators):
-            #print("elevator.id")
-
         self.destinationlist = []
         self.directionbuttonlist = []
         for index in range(nbfloors):
@@ -299,6 +280,7 @@ class column:
                 self.directionbuttonlist.append(directionbutton(down, index))
             else:
                 self.directionbuttonlist.append(directionbutton(up, index))
+
                 self.directionbuttonlist.append(directionbutton(down, index))
 
             self.destinationlist.append(floor(index, floornames[index], self.directionbuttonlist))
@@ -439,7 +421,7 @@ STATUS INDEX:
 """
 
 #controller initialisation
-inittest(10,3)
+inittest(10,4)
 controllerrunning = True
 
 def main():
@@ -453,7 +435,7 @@ def main():
         if firstinstructiondone is False:
             firstinstructiondone = True
             #first user
-            elevator.append(controller.requestelevator(1, up))
+            elevator.append(controller.requestelevator(10, down))
             #second user
             #elevator.append(controller.requestelevator(3, down))
             #third user
@@ -463,7 +445,7 @@ def main():
             #second user
             #controller.requestfloor(elevator[1],2)
             #third user
-            #controller.requestfloor(elevator[1],1)
+            #controller.requestfloor(elevator[2],1)
 
         #CONTROLLER SEQUENCES
         controller.checkelevatorstatus()
@@ -478,19 +460,3 @@ def main():
             break
 
 main()
-
-
-# **********************************************************************************
-
-"""
-Residential Scenario 1:
-A user located at Ground floor calls for elevator to go up and request the 4th floor'
-
-Residential Scenario 2:
-A user located at 3nd floor call for elevator to go down and request 2nd floor, 
-simultaneously, someone at Ground floor requests an elevator to get to 4th floor'
-
-Residential Scenario 3:
-A user located at floor 8 call for elevator to go down request the Ground floor. 
-Simultaneously scenario 1 running too'
- """
