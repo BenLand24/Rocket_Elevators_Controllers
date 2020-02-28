@@ -421,7 +421,7 @@ STATUS INDEX:
 """
 
 #controller initialisation
-inittest(10,4)
+inittest(2,8)
 controllerrunning = True
 
 def main():
@@ -435,17 +435,17 @@ def main():
         if firstinstructiondone is False:
             firstinstructiondone = True
             #first user
-            elevator.append(controller.requestelevator(10, down))
+            elevator.append(controller.requestelevator(8,down))
             #second user
-            #elevator.append(controller.requestelevator(3, down))
+            elevator.append(controller.requestelevator(2, down))
             #third user
             #elevator.append(controller.requestelevator(9, down))
             #first user
-            controller.requestfloor(elevator[0],5)
+            controller.requestfloor(elevator[0],2)
             #second user
-            #controller.requestfloor(elevator[1],2)
+            controller.requestfloor(elevator[1],1)
             #third user
-            #controller.requestfloor(elevator[2],1)
+            #controller.requestfloor(elevator[2],2)
 
         #CONTROLLER SEQUENCES
         controller.checkelevatorstatus()
