@@ -1,3 +1,36 @@
+WEEK 3
+
+c#
+
+remove the comment at line 360 to 488
+Each column are scenario
+so hide and unhide comment to make it work
+
+// controller.assignElevator(1);
+mean when user are at RC(7) and ask to go to B6(1)
+
+//Elevator elevator = controller.RequestElevator(4, 7);
+mean a user to the B3(4) and request RC 
+
+Each controller.assignElevator and RequestElevator are below the 5 elevator for each column
+
+Since i start with 1 for B6 you have to do +7 the floor you want to go
+
+GO
+
+remove the comment at line 360 to 345
+Each column are scenario
+
+// controller.AssignElevator(27)
+mean when user are at RC(7) and ask to go to 20(27)
+
+// controller.RequestElevator(27, 7)
+mean a user to the 20(27) and request RC(7) 
+
+Since i start with 1 for B6 you have to do +7 the floor you want to go
+------
+WEEK 2
+
 javascript test
 remove the comment at line 215 to 222
 (those line)
